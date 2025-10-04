@@ -296,6 +296,18 @@
       letter-spacing: 0.5px;
       border: 1px solid rgba(243, 156, 18, 0.3);
     }
+    .history-actions { display: flex; align-items: center; gap: 8px; }
+    .delete-btn { 
+      padding: 6px 10px; 
+      border-radius: 8px; 
+      background: transparent; 
+      border: 1px solid rgba(231, 76, 60, 0.3); 
+      color: #e74c3c; 
+      font-size: 12px; 
+      font-weight: 700; 
+      cursor: pointer; 
+    }
+    .delete-btn:active { transform: scale(0.95); }
     .history-exercises { display: grid; gap: 6px; }
     .history-exercise { 
       display: flex; 
@@ -337,6 +349,39 @@
     .achievement-text { font-size: 14px; color: #bdc3c7; font-weight: 600; }
     .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; }
     .overlay.show { display: block; }
+    
+    /* Confirm Dialog */
+    .confirm-dialog { 
+      position: fixed; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      background: linear-gradient(135deg, rgba(22, 33, 62, 0.98) 0%, rgba(26, 26, 46, 0.98) 100%);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(231, 76, 60, 0.5); 
+      border-radius: 16px; 
+      padding: 24px; 
+      z-index: 1000; 
+      max-width: 320px; 
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      display: none;
+    }
+    .confirm-title { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
+    .confirm-text { font-size: 14px; color: #bdc3c7; margin-bottom: 20px; }
+    .confirm-buttons { display: flex; gap: 10px; }
+    .confirm-btn { 
+      flex: 1; 
+      padding: 12px; 
+      border-radius: 8px; 
+      border: none; 
+      font-size: 14px; 
+      font-weight: 700; 
+      cursor: pointer; 
+    }
+    .confirm-btn.primary { background: #e74c3c; color: #ffffff; }
+    .confirm-btn.secondary { background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: #bdc3c7; }
+    .confirm-btn:active { transform: scale(0.95); }
   </style>
 </head>
 <body>
@@ -398,6 +443,17 @@
     <div class="achievement-icon" id="achievementIcon">🏆</div>
     <div class="achievement-title" id="achievementTitle">Great Work!</div>
     <div class="achievement-text" id="achievementText">Keep crushing it!</div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="overlay" id="confirmOverlay"></div>
+  <div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+    <div class="confirm-text" id="confirmText">Are you sure?</div>
+    <div class="confirm-buttons">
+      <button class="confirm-btn secondary" id="confirmCancel">Cancel</button>
+      <button class="confirm-btn primary" id="confirmOk">Confirm</button>
+    </div>
   </div>
 
   <script>
@@ -1236,7 +1292,10 @@
                 <div class="history-workout-name">${session.workoutName}</div>
                 <div class="history-date">${dateStr} at ${timeStr}</div>
               </div>
-              <div class="history-badge">${session.exercises.length} exercises</div>
+              <div class="history-actions">
+                <div class="history-badge">${session.exercises.length} exercises</div>
+                <button class="delete-btn" type="button" onclick="deleteWorkout(${session.id})">Delete</button>
+              </div>
             </div>
             <div class="history-exercises">
               ${session.exercises.map(ex => `
@@ -1247,6 +1306,47 @@
             </div>
           </div>`;
       }).join('');
+    }
+
+    function deleteWorkout(sessionId) {
+      showConfirm('Delete Workout?', 'This action cannot be undone.', () => {
+        const index = workoutHistory.findIndex((s) => s.id === sessionId);
+        if (index === -1) return;
+        workoutHistory.splice(index, 1);
+        saveState();
+        renderProgressPage();
+        showAchievement('Deleted', 'Workout removed from history', '🗑️');
+      });
+    }
+
+    function showConfirm(title, text, onConfirm) {
+      const dialog = document.getElementById('confirmDialog');
+      const overlay = document.getElementById('confirmOverlay');
+      const titleEl = document.getElementById('confirmTitle');
+      const textEl = document.getElementById('confirmText');
+      const okBtn = document.getElementById('confirmOk');
+      const cancelBtn = document.getElementById('confirmCancel');
+
+      titleEl.textContent = title;
+      textEl.textContent = text;
+
+      dialog.style.display = 'block';
+      overlay.classList.add('show');
+
+      const cleanup = () => {
+        dialog.style.display = 'none';
+        overlay.classList.remove('show');
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+      };
+
+      okBtn.onclick = () => {
+        cleanup();
+        onConfirm();
+      };
+
+      cancelBtn.onclick = cleanup;
+      overlay.onclick = cleanup;
     }
 
     function showAchievement(title, text, icon = '💪') {
