@@ -101,6 +101,15 @@
       border-color: #3498db;
       box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
     }
+    .day-tab.completed { 
+      background: linear-gradient(135deg, rgba(46, 204, 113, 0.2) 0%, rgba(39, 174, 96, 0.15) 100%); 
+      border-color: rgba(46, 204, 113, 0.4);
+    }
+    .day-tab.completed.active {
+      background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+      border-color: #2ecc71;
+      box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+    }
     .day-name { font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px; }
     .day-subtitle { font-size: 11px; color: rgba(255, 255, 255, 0.7); font-weight: 600; }
     .day-check { margin-top: 6px; font-size: 18px; }
@@ -1032,15 +1041,15 @@
         const weekNum = weekKey.replace('week', '');
         const isActive = weekKey === currentWeek;
         
-        // Calculate progress
-        const weekData = workoutData[weekKey] || {};
+        // Calculate progress - check workout history for saved workouts
         const days = Object.keys(workoutProgram[weekKey].days);
         let completedDays = 0;
         days.forEach(dayKey => {
-          const dayData = weekData[dayKey] || {};
-          const exercises = workoutProgram[weekKey].days[dayKey].exercises;
-          const completed = exercises.filter((_, idx) => dayData[idx]?.completed).length;
-          if (completed > 0) completedDays++;
+          // Check if this day has been saved in workout history
+          const hasSavedWorkout = workoutHistory.some(session => 
+            session.week === weekKey && session.day === dayKey
+          );
+          if (hasSavedWorkout) completedDays++;
         });
         
         const tab = document.createElement('div');
@@ -1062,19 +1071,22 @@
       Object.keys(days).forEach(dayKey => {
         const day = days[dayKey];
         const isActive = dayKey === currentDay;
-        const dayData = workoutData[currentWeek][dayKey] || {};
         
-        // Check if any exercises completed
-        const exercises = day.exercises;
-        const completed = exercises.filter((_, idx) => dayData[idx]?.completed).length;
-        const isDayComplete = completed > 0;
+        // Check if this day has been saved in workout history
+        const hasSavedWorkout = workoutHistory.some(session => 
+          session.week === currentWeek && session.day === dayKey
+        );
         
         const tab = document.createElement('div');
-        tab.className = 'day-tab' + (isActive ? ' active' : '');
+        let className = 'day-tab';
+        if (isActive) className += ' active';
+        if (hasSavedWorkout) className += ' completed';
+        tab.className = className;
+        
         tab.innerHTML = `
           <div class="day-name">${day.name}</div>
           <div class="day-subtitle">${day.subtitle}</div>
-          ${isDayComplete ? '<div class="day-check">✓</div>' : ''}
+          ${hasSavedWorkout ? '<div class="day-check">✓</div>' : ''}
         `;
         tab.onclick = () => switchDay(dayKey);
         container.appendChild(tab);
