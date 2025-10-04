@@ -263,6 +263,33 @@
     
     /* Stats Page */
     .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
+    .backup-section { 
+      padding: 16px; 
+      margin-bottom: 16px;
+    }
+    .backup-buttons { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 12px; 
+    }
+    .backup-btn { 
+      padding: 14px; 
+      border-radius: 12px; 
+      border: 1px solid rgba(255, 255, 255, 0.2); 
+      background: rgba(255, 255, 255, 0.05); 
+      color: #ffffff; 
+      font-size: 13px; 
+      font-weight: 700; 
+      cursor: pointer; 
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .backup-btn:active { transform: scale(0.96); }
+    .backup-btn.download { border-color: rgba(46, 204, 113, 0.3); color: #2ecc71; }
+    .backup-btn.upload { border-color: rgba(52, 152, 219, 0.3); color: #3498db; }
     .stat-card { 
       background: rgba(255, 255, 255, 0.05); 
       border: 1px solid rgba(255, 255, 255, 0.1); 
@@ -429,6 +456,18 @@
         <div class="stat-value" id="currentWeek">1</div>
         <div class="stat-label">Current Week</div>
       </div>
+    </div>
+
+    <div class="backup-section">
+      <div class="backup-buttons">
+        <button class="backup-btn download" type="button" onclick="downloadBackup()">
+          📥 Download Backup
+        </button>
+        <button class="backup-btn upload" type="button" onclick="document.getElementById('restoreFile').click()">
+          📤 Restore Backup
+        </button>
+      </div>
+      <input type="file" id="restoreFile" accept=".csv" style="display: none;" onchange="restoreBackup(event)" />
     </div>
 
     <div class="history-section">
@@ -1347,6 +1386,112 @@
 
       cancelBtn.onclick = cleanup;
       overlay.onclick = cleanup;
+    }
+
+    // ========== BACKUP/RESTORE ==========
+    function downloadBackup() {
+      if (workoutHistory.length === 0) {
+        showAchievement('No Data', 'No workouts to backup yet', '⚠️');
+        return;
+      }
+
+      // Create CSV content
+      let csv = 'Date,Time,Week,Day,Workout Name,Exercise Name,Sets,Reps,Weight\n';
+      
+      workoutHistory.forEach(session => {
+        const date = new Date(session.date);
+        const dateStr = date.toLocaleDateString('en-US');
+        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        
+        session.exercises.forEach(ex => {
+          csv += `"${dateStr}","${timeStr}","${session.week}","${session.day}","${session.workoutName}","${ex.name}",${ex.sets},"${ex.reps}",${ex.weight}\n`;
+        });
+      });
+
+      // Create download
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `workout-backup-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      showAchievement('Backup Downloaded!', 'Save this file safely', '💾');
+    }
+
+    function restoreBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const csv = e.target.result;
+          const lines = csv.split('\n').slice(1); // Skip header
+          
+          const restoredSessions = {};
+          
+          lines.forEach(line => {
+            if (!line.trim()) return;
+            
+            const matches = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
+            if (!matches || matches.length < 9) return;
+            
+            const [dateStr, timeStr, week, day, workoutName, exName, sets, reps, weight] = matches.map(m => m.replace(/^"|"$/g, ''));
+            
+            // Create unique session key
+            const sessionKey = `${dateStr}_${timeStr}_${workoutName}`;
+            
+            if (!restoredSessions[sessionKey]) {
+              restoredSessions[sessionKey] = {
+                id: Date.now() + Math.random(),
+                date: new Date(`${dateStr} ${timeStr}`).toISOString(),
+                week: week,
+                day: day,
+                workoutName: workoutName,
+                exercises: []
+              };
+            }
+            
+            restoredSessions[sessionKey].exercises.push({
+              name: exName,
+              sets: parseInt(sets) || 3,
+              reps: reps,
+              weight: parseFloat(weight) || 0
+            });
+          });
+          
+          // Add restored sessions to history
+          const newSessions = Object.values(restoredSessions);
+          workoutHistory = [...newSessions, ...workoutHistory];
+          
+          // Remove duplicates based on date and workout name
+          const seen = new Set();
+          workoutHistory = workoutHistory.filter(session => {
+            const key = `${session.date}_${session.workoutName}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          
+          // Sort by date descending
+          workoutHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+          
+          saveState();
+          renderProgressPage();
+          showAchievement('Backup Restored!', `${newSessions.length} workouts imported`, '✅');
+          
+        } catch (error) {
+          console.error('Restore error:', error);
+          showAchievement('Restore Failed', 'Invalid backup file format', '❌');
+        }
+      };
+      
+      reader.readAsText(file);
+      event.target.value = ''; // Reset file input
     }
 
     function showAchievement(title, text, icon = '💪') {
