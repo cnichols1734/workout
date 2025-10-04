@@ -112,6 +112,14 @@
     }
     .day-name { font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px; }
     .day-subtitle { font-size: 11px; color: rgba(255, 255, 255, 0.7); font-weight: 600; }
+    .day-date { 
+      font-size: 10px; 
+      color: rgba(46, 204, 113, 0.9); 
+      font-weight: 700; 
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
     .day-check { margin-top: 6px; font-size: 18px; }
     
     /* Week Info Banner */
@@ -1072,10 +1080,17 @@
         const day = days[dayKey];
         const isActive = dayKey === currentDay;
         
-        // Check if this day has been saved in workout history
-        const hasSavedWorkout = workoutHistory.some(session => 
+        // Check if this day has been saved in workout history and get the most recent date
+        const savedSession = workoutHistory.find(session => 
           session.week === currentWeek && session.day === dayKey
         );
+        const hasSavedWorkout = !!savedSession;
+        
+        let dateStr = '';
+        if (hasSavedWorkout) {
+          const date = new Date(savedSession.date);
+          dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
         
         const tab = document.createElement('div');
         let className = 'day-tab';
@@ -1086,6 +1101,7 @@
         tab.innerHTML = `
           <div class="day-name">${day.name}</div>
           <div class="day-subtitle">${day.subtitle}</div>
+          ${hasSavedWorkout ? `<div class="day-date">${dateStr}</div>` : ''}
           ${hasSavedWorkout ? '<div class="day-check">✓</div>' : ''}
         `;
         tab.onclick = () => switchDay(dayKey);
