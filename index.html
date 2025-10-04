@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Workout" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Workout Tracker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; min-height: 100vh; overflow-x: hidden; color: #ffffff; }
+    .header { background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 1px solid #2a2a2a; padding: 20px 16px; position: sticky; top: 0; z-index: 50; }
+    .header-content { display: flex; justify-content: space-between; align-items: center; }
+    .header-title { font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .header-subtitle { color: #888; font-size: 13px; margin-top: 2px; font-weight: 500; }
+    .nav-tabs { display: flex; gap: 8px; }
+    .nav-tab { padding: 8px 16px; border-radius: 8px; background: transparent; border: 1px solid #2a2a2a; color: #666; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; }
+    .nav-tab.active { background: #2a2a2a; color: #ffffff; border-color: #3a3a3a; }
+    .nav-tab:active { transform: scale(0.95); }
+    .page { display: none; }
+    .page.active { display: block; }
+    .day-tabs-container { padding: 16px; }
+    .day-tabs-card { background: #1a1a1a; border-radius: 12px; padding: 6px; border: 1px solid #2a2a2a; }
+    .day-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .day-tab { padding: 14px 12px; border-radius: 8px; background: transparent; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #666; transition: all 0.2s; text-align: left; }
+    .day-tab:active { transform: scale(0.96); }
+    .day-tab.active { background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%); color: #ffffff; border: 1px solid #4a4a4a; }
+    .day-label { font-size: 10px; opacity: 0.6; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    .day-name { font-weight: 700; font-size: 14px; }
+    .workout-container { padding: 0 16px 100px 16px; }
+    .workout-header { background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%); border-radius: 16px 16px 0 0; padding: 28px 24px; border: 1px solid #3a3a3a; border-bottom: none; }
+    .workout-title { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .workout-subtitle { font-size: 14px; color: #888; margin-top: 4px; font-weight: 500; }
+    .workout-stats { display: flex; gap: 24px; margin-top: 20px; font-size: 14px; }
+    .stat-item { display: flex; align-items: center; gap: 8px; color: #aaa; font-weight: 600; }
+    .stat-icon { font-size: 18px; }
+    .exercises-container { background: #1a1a1a; border-radius: 0 0 16px 16px; padding: 16px; margin-bottom: 24px; border: 1px solid #3a3a3a; border-top: none; }
+    .exercise-card { background: #0f0f0f; border-radius: 12px; padding: 18px; margin-bottom: 12px; border: 1px solid #2a2a2a; transition: all 0.2s; }
+    .exercise-card:active { transform: scale(0.98); }
+    .exercise-card.completed { background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%); border: 1px solid #4a4a4a; }
+    .exercise-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+    .exercise-info { flex: 1; }
+    .exercise-name { font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 6px; letter-spacing: -0.3px; }
+    .optional-badge { font-size: 11px; font-weight: 600; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; }
+    .exercise-details { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #888; font-weight: 600; }
+    .rpe-badge { padding: 4px 10px; border-radius: 6px; background: #2a2a2a; color: #aaa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #3a3a3a; }
+    .exercise-card.completed .rpe-badge { background: #3a3a3a; color: #ccc; border-color: #4a4a4a; }
+    .exercise-note { font-size: 12px; color: #666; font-style: italic; margin-top: 8px; font-weight: 500; }
+    .complete-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #3a3a3a; background: transparent; color: #666; font-size: 20px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; font-weight: 700; }
+    .exercise-card.completed .complete-btn { background: #3a3a3a; border-color: #4a4a4a; color: #ffffff; }
+    .complete-btn:active { transform: scale(0.9); }
+    .weight-input-container { display: flex; align-items: center; gap: 10px; }
+    .weight-input { flex: 1; padding: 14px; border-radius: 8px; border: 1px solid #2a2a2a; background: #0a0a0a; font-size: 16px; font-weight: 700; text-align: center; color: #ffffff; }
+    .weight-input::placeholder { color: #444; font-weight: 600; }
+    .exercise-card.completed .weight-input { background: #1a1a1a; border-color: #3a3a3a; }
+    .weight-label { font-size: 13px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+    .submit-workout-btn { width: 100%; padding: 18px; border-radius: 12px; border: none; background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%); color: #ffffff; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; margin-top: 8px; opacity: 0.5; }
+    .submit-workout-btn:active { transform: scale(0.98); }
+    .submit-workout-btn.ready { background: linear-gradient(135deg, #4a4a4a 0%, #3a3a3a 100%); border: 1px solid #5a5a5a; opacity: 1; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
+    .stat-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: 800; color: #ffffff; margin-bottom: 4px; }
+    .stat-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    .streak-card { background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%); border: 1px solid #3a3a3a; border-radius: 16px; padding: 24px; margin: 0 16px 16px 16px; text-align: center; }
+    .streak-emoji { font-size: 48px; margin-bottom: 12px; }
+    .streak-number { font-size: 36px; font-weight: 800; color: #ffffff; margin-bottom: 4px; }
+    .streak-label { font-size: 14px; color: #888; font-weight: 600; }
+    .history-section { padding: 0 16px 100px 16px; }
+    .section-title { font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 16px; letter-spacing: -0.3px; }
+    .history-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+    .history-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .history-workout-name { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 4px; }
+    .history-date { font-size: 12px; color: #666; font-weight: 600; }
+    .history-badge { padding: 6px 12px; border-radius: 8px; background: #2a2a2a; color: #aaa; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .history-exercises { display: grid; gap: 8px; }
+    .history-exercise { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #0f0f0f; border-radius: 8px; font-size: 13px; }
+    .history-exercise-name { color: #aaa; font-weight: 600; }
+    .history-exercise-weight { color: #ffffff; font-weight: 700; }
+    .history-actions { display: flex; align-items: center; gap: 8px; }
+    .delete-btn { padding: 6px 10px; border-radius: 8px; background: transparent; border: 1px solid #2a2a2a; color: #888; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .delete-btn:active { transform: scale(0.95); }
+    .empty-state { text-align: center; padding: 60px 20px; color: #666; }
+    .empty-state-icon { font-size: 64px; margin-bottom: 16px; }
+    .empty-state-text { font-size: 16px; font-weight: 600; }
+    .achievement-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%); border: 2px solid #4a4a4a; border-radius: 20px; padding: 40px; text-align: center; z-index: 1000; transition: transform 0.3s ease; max-width: 300px; }
+    .achievement-popup.show { transform: translate(-50%, -50%) scale(1); }
+    .achievement-icon { font-size: 72px; margin-bottom: 16px; animation: bounce 0.6s ease; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    .achievement-title { font-size: 24px; font-weight: 800; color: #ffffff; margin-bottom: 8px; }
+    .achievement-text { font-size: 14px; color: #888; font-weight: 600; }
+    .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); z-index: 999; display: none; }
+    .overlay.show { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <div>
+        <div class="header-title">WORKOUT</div>
+        <div class="header-subtitle">Build • Burn • Strengthen</div>
+      </div>
+      <div class="nav-tabs">
+        <button class="nav-tab active" type="button" onclick="switchPage('workout')">Train</button>
+        <button class="nav-tab" type="button" onclick="switchPage('progress')">Stats</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workout Page -->
+  <div id="workoutPage" class="page active">
+    <div class="day-tabs-container">
+      <div class="day-tabs-card">
+        <div class="day-tabs" id="dayTabs"></div>
+      </div>
+    </div>
+    <div class="workout-container" id="workoutContainer"></div>
+  </div>
+
+  <!-- Progress Page -->
+  <div id="progressPage" class="page">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="totalWorkouts">0</div>
+        <div class="stat-label">Workouts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalExercises">0</div>
+        <div class="stat-label">Exercises</div>
+      </div>
+    </div>
+
+    <div class="streak-card">
+      <div class="streak-emoji" id="streakEmoji">🔥</div>
+      <div class="streak-number" id="streakNumber">0</div>
+      <div class="streak-label">Day Streak</div>
+    </div>
+
+    <div class="history-section">
+      <div class="section-title">Workout History</div>
+      <div id="historyContainer"></div>
+    </div>
+  </div>
+
+  <!-- Achievement Popup -->
+  <div class="overlay" id="overlay"></div>
+  <div class="achievement-popup" id="achievementPopup">
+    <div class="achievement-icon" id="achievementIcon">🏆</div>
+    <div class="achievement-title" id="achievementTitle">Achievement Unlocked!</div>
+    <div class="achievement-text" id="achievementText">Keep crushing it!</div>
+  </div>
+
+  <script>
+    // ---- Persistence helpers ----
+    const STATE_KEY = 'wt_state_v1';
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        console.error('Failed to load state:', e);
+        return null;
+      }
+    }
+
+    function saveState() {
+      try {
+        const state = { workoutData, workoutHistory, currentDay };
+        localStorage.setItem(STATE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error('Failed to save state:', e);
+      }
+    }
+
+    // ---- Workout plan data ----
+    const workoutPlan = {
+      day1: {
+        name: 'Upper Body A',
+        subtitle: 'Arms & Push',
+        dayLabel: 'Tuesday',
+        exercises: [
+          { name: 'Seated Chest Press', sets: 3, reps: '10-12', rpe: 7 },
+          { name: 'Lat Pulldown', sets: 3, reps: '10-12', rpe: 7 },
+          { name: 'Seated DB Shoulder Press', sets: 3, reps: '10-12', rpe: 7 },
+          { name: 'Cable Triceps Push-down', sets: 3, reps: '12-15', rpe: 8 },
+          { name: 'Machine Biceps Curl', sets: 3, reps: '12-15', rpe: 8 },
+          { name: 'Treadmill Walk', sets: 1, reps: '15 min', rpe: 0, optional: true },
+        ],
+      },
+      day2: {
+        name: 'Lower Body A',
+        subtitle: 'Joint-Friendly Strength',
+        dayLabel: 'Thursday',
+        exercises: [
+          { name: 'Leg Press', sets: 3, reps: '10', rpe: 7, note: 'Feet high on platform' },
+          { name: 'Seated Hamstring Curl', sets: 3, reps: '12', rpe: 7 },
+          { name: 'Leg Extension', sets: 2, reps: '15', rpe: 6, note: 'Slow and controlled' },
+          { name: 'Glute Bridge on Mat', sets: 3, reps: '12', rpe: 7 },
+          { name: 'Standing Calf Raise', sets: 3, reps: '15', rpe: 7 },
+          { name: 'Recumbent Bike', sets: 1, reps: '5 min', rpe: 0, optional: true },
+        ],
+      },
+      day3: {
+        name: 'Upper Body B',
+        subtitle: 'Back & Arms Focus',
+        dayLabel: 'Sunday',
+        exercises: [
+          { name: 'Seated Row', sets: 3, reps: '10-12', rpe: 7 },
+          { name: 'Chest-Supported DB Row', sets: 3, reps: '12', rpe: 7 },
+          { name: 'Cable Crossover', sets: 3, reps: '12', rpe: 7 },
+          { name: 'Incline Dumbbell Curl', sets: 3, reps: '12', rpe: 8 },
+          { name: 'Overhead Cable Tri Ext', sets: 3, reps: '12', rpe: 8 },
+          { name: 'Ab Crunch Machine', sets: 3, reps: '15', rpe: 7, optional: true },
+        ],
+      },
+      day4: {
+        name: 'Optional Day',
+        subtitle: 'Knee & Cardio Focus',
+        dayLabel: 'Friday',
+        exercises: [
+          { name: 'Recumbent Bike Warm-up', sets: 1, reps: '10-15 min', rpe: 0 },
+          { name: 'Body-weight Box Squats', sets: 3, reps: '10', rpe: 6 },
+          { name: 'Leg Press', sets: 2, reps: '10', rpe: 7 },
+          { name: 'Cable Glute Kick-backs', sets: 3, reps: '12', rpe: 7 },
+          { name: 'Step Down Practice', sets: 3, reps: '8 each', rpe: 0, note: 'Slow eccentric' },
+          { name: 'Treadmill Incline Walk', sets: 1, reps: '15 min', rpe: 0 },
+        ],
+      },
+    };
+
+    // ---- State (persistent) ----
+    let currentDay = 'day1';
+    let currentPage = 'workout';
+    let workoutData = {};
+    let workoutHistory = [];
+
+    function initializeWorkoutData() {
+      const saved = loadState();
+      if (saved) {
+        workoutData = saved.workoutData || {};
+        workoutHistory = saved.workoutHistory || [];
+        currentDay = saved.currentDay || 'day1';
+      }
+
+      Object.keys(workoutPlan).forEach((day) => {
+        if (!workoutData[day]) workoutData[day] = {};
+        workoutPlan[day].exercises.forEach((_, index) => {
+          if (!workoutData[day][index]) {
+            workoutData[day][index] = { weight: '', completed: false };
+          }
+        });
+      });
+
+      saveState();
+    }
+
+    function switchPage(page) {
+      currentPage = page;
+      document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach((t) => t.classList.remove('active'));
+
+      if (page === 'workout') {
+        document.getElementById('workoutPage').classList.add('active');
+        document.querySelectorAll('.nav-tab')[0].classList.add('active');
+      } else {
+        document.getElementById('progressPage').classList.add('active');
+        document.querySelectorAll('.nav-tab')[1].classList.add('active');
+        renderProgressPage();
+      }
+    }
+
+    function renderDayTabs() {
+      const tabsContainer = document.getElementById('dayTabs');
+      tabsContainer.innerHTML = '';
+
+      Object.keys(workoutPlan).forEach((day) => {
+        const plan = workoutPlan[day];
+        const isActive = day === currentDay;
+
+        const dayData = workoutData[day] || {};
+        const totalExercises = plan.exercises.filter((e) => !e.optional).length;
+        const completedExercises = Object.values(dayData)
+          .filter((e, idx) => e.completed && !plan.exercises[idx]?.optional).length;
+        const isCompleted = completedExercises === totalExercises && completedExercises > 0;
+
+        const tab = document.createElement('button');
+        tab.className = 'day-tab' + (isActive ? ' active' : '');
+        tab.type = 'button';
+        tab.innerHTML = `
+          <div class="day-label">${plan.dayLabel}</div>
+          <div class="day-name">${plan.name}</div>
+          ${isCompleted ? '<div style="margin-top:6px;font-size:16px;">✓</div>' : ''}
+        `;
+        tab.onclick = () => switchDay(day);
+        tabsContainer.appendChild(tab);
+      });
+    }
+
+    function switchDay(day) {
+      currentDay = day;
+      saveState();
+      renderDayTabs();
+      renderWorkout();
+    }
+
+    function renderWorkout() {
+      const container = document.getElementById('workoutContainer');
+      const plan = workoutPlan[currentDay];
+      const dayData = workoutData[currentDay] || {};
+
+      const totalExercises = plan.exercises.filter((e) => !e.optional).length;
+      const completedCount = Object.values(dayData)
+        .filter((data, index) => data.completed && !plan.exercises[index].optional).length;
+      const isWorkoutComplete = completedCount === totalExercises && totalExercises > 0;
+
+      container.innerHTML = `
+        <div>
+          <div class="workout-header">
+            <div class="workout-title">${plan.name}</div>
+            <div class="workout-subtitle">${plan.subtitle}</div>
+            <div class="workout-stats">
+              <div class="stat-item"><span class="stat-icon">💪</span><span>${totalExercises} exercises</span></div>
+              <div class="stat-item"><span class="stat-icon">✓</span><span>${completedCount} done</span></div>
+            </div>
+          </div>
+
+          <div class="exercises-container">
+            ${plan.exercises.map((exercise, index) =>
+              renderExerciseCard(exercise, index, dayData[index])
+            ).join('')}
+
+            <button class="submit-workout-btn ${isWorkoutComplete ? 'ready' : ''}"
+                    type="button"
+                    onclick="submitWorkout()"
+                    ${!isWorkoutComplete ? 'disabled' : ''}>
+              ${isWorkoutComplete ? '🏆 Complete Workout' : '⏳ Complete All Exercises'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderExerciseCard(exercise, index, data = {}) {
+      const isCompleted = data?.completed || false;
+      const weight = data?.weight ?? '';
+
+      return `
+        <div class="exercise-card${isCompleted ? ' completed' : ''}">
+          <div class="exercise-header">
+            <div class="exercise-info">
+              <div class="exercise-name">
+                ${exercise.name}
+                ${exercise.optional ? ' <span class="optional-badge">Optional</span>' : ''}
+              </div>
+              <div class="exercise-details">
+                <span>${exercise.sets} × ${exercise.reps}</span>
+                ${exercise.rpe > 0 ? `<span class="rpe-badge">RPE ${exercise.rpe}</span>` : ''}
+              </div>
+              ${exercise.note ? `<div class="exercise-note">${exercise.note}</div>` : ''}
+            </div>
+            <button onclick="toggleComplete(${index})" type="button" class="complete-btn">
+              ${isCompleted ? '✓' : '○'}
+            </button>
+          </div>
+
+          ${!exercise.optional && exercise.rpe > 0 ? `
+          <div class="weight-input-container">
+            <input
+              type="number"
+              inputmode="decimal"
+              placeholder="Weight"
+              value="${weight}"
+              onchange="updateWeight(${index}, this.value)"
+              class="weight-input"
+            />
+            <span class="weight-label">LBS</span>
+          </div>` : ''}
+        </div>
+      `;
+    }
+
+    function updateWeight(index, value) {
+      if (!workoutData[currentDay][index]) {
+        workoutData[currentDay][index] = { weight: '', completed: false };
+      }
+      workoutData[currentDay][index].weight = value;
+      saveState();
+    }
+
+    function toggleComplete(index) {
+      if (!workoutData[currentDay][index]) {
+        workoutData[currentDay][index] = { weight: '', completed: false };
+      }
+      workoutData[currentDay][index].completed = !workoutData[currentDay][index].completed;
+      saveState();
+      renderDayTabs();
+      renderWorkout();
+    }
+
+    function submitWorkout() {
+      const plan = workoutPlan[currentDay];
+      const dayData = workoutData[currentDay];
+
+      const workoutSession = {
+        id: Date.now(),
+        date: new Date().toISOString(),
+        day: currentDay,
+        workoutName: plan.name,
+        exercises: [],
+      };
+
+      plan.exercises.forEach((exercise, index) => {
+        if (dayData[index] && dayData[index].completed) {
+          workoutSession.exercises.push({
+            name: exercise.name,
+            sets: exercise.sets,
+            reps: exercise.reps,
+            weight: dayData[index].weight || 'BW',
+            rpe: exercise.rpe,
+          });
+        }
+      });
+
+      workoutHistory.unshift(workoutSession);
+
+      showAchievement('Workout Complete!', 'Great job today!', '🏆');
+
+      workoutData[currentDay] = {};
+      workoutPlan[currentDay].exercises.forEach((_, idx) => {
+        if (!workoutData[currentDay][idx]) workoutData[currentDay][idx] = { weight: '', completed: false };
+      });
+
+      saveState();
+      renderDayTabs();
+      renderWorkout();
+    }
+
+    function renderProgressPage() {
+      const totalWorkouts = workoutHistory.length;
+      const totalExercises = workoutHistory.reduce((acc, session) => acc + session.exercises.length, 0);
+      const streak = calculateStreak();
+
+      document.getElementById('totalWorkouts').textContent = totalWorkouts;
+      document.getElementById('totalExercises').textContent = totalExercises;
+      document.getElementById('streakNumber').textContent = streak;
+
+      const streakEmoji = document.getElementById('streakEmoji');
+      if (streak === 0) streakEmoji.textContent = '💪';
+      else if (streak < 7) streakEmoji.textContent = '🔥';
+      else if (streak < 30) streakEmoji.textContent = '⚡';
+      else streakEmoji.textContent = '🏆';
+
+      renderHistory();
+    }
+
+    function calculateStreak() {
+      if (workoutHistory.length === 0) return 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const uniqueDays = Array.from(
+        new Set(workoutHistory.map((s) => new Date(s.date).toISOString().slice(0, 10)))
+      ).sort((a, b) => (a > b ? -1 : 1));
+
+      let streak = 0;
+      for (let i = 0; i < uniqueDays.length; i++) {
+        const d = new Date(uniqueDays[i]);
+        d.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((today - d) / (1000 * 60 * 60 * 24));
+        if (diffDays === streak) streak++;
+        else break;
+      }
+      return streak;
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('historyContainer');
+
+      if (workoutHistory.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-text">No workouts yet. Start training!</div>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = workoutHistory.slice(0, 10).map((session) => {
+        const date = new Date(session.date);
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+        return `
+          <div class="history-card">
+            <div class="history-header">
+              <div>
+                <div class="history-workout-name">${session.workoutName}</div>
+                <div class="history-date">${dateStr} at ${timeStr}</div>
+              </div>
+              <div class="history-actions">
+                <div class="history-badge">${session.exercises.length} exercises</div>
+                <button class="delete-btn" type="button" onclick="deleteWorkout(${session.id})">Delete</button>
+              </div>
+            </div>
+            <div class="history-exercises">
+              ${session.exercises.map(ex => `
+                <div class="history-exercise">
+                  <span class="history-exercise-name">${ex.name}</span>
+                  <span class="history-exercise-weight">
+                    ${ex.sets} × ${ex.reps} ${ex.weight !== 'BW' ? `@ ${ex.weight} lbs` : ''}
+                  </span>
+                </div>`).join('')}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function deleteWorkout(sessionId) {
+      const index = workoutHistory.findIndex((s) => s.id === sessionId);
+      if (index === -1) return;
+      workoutHistory.splice(index, 1);
+      saveState();
+      renderProgressPage();
+    }
+
+    function showAchievement(title, text, icon = '🏆') {
+      const popup = document.getElementById('achievementPopup');
+      const overlay = document.getElementById('overlay');
+      const iconEl = document.getElementById('achievementIcon');
+      const titleEl = document.getElementById('achievementTitle');
+      const textEl = document.getElementById('achievementText');
+
+      iconEl.textContent = icon;
+      titleEl.textContent = title;
+      textEl.textContent = text;
+
+      overlay.classList.add('show');
+      popup.classList.add('show');
+
+      setTimeout(() => {
+        overlay.classList.remove('show');
+        popup.classList.remove('show');
+      }, 3000);
+    }
+
+    // Register service worker for PWA/offline
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+
+    // Boot
+    window.onload = function () {
+      initializeWorkoutData();
+      renderDayTabs();
+      renderWorkout();
+    };
+  </script>
+</body>
+</html>
