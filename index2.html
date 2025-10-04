@@ -199,6 +199,45 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
+    /* Custom Exercise Section */
+    .custom-exercise-section { 
+      margin-top: 20px; 
+      padding-top: 20px; 
+      border-top: 2px solid rgba(255, 255, 255, 0.1); 
+    }
+    .custom-exercise-title { 
+      font-size: 16px; 
+      font-weight: 700; 
+      color: #f39c12; 
+      margin-bottom: 12px; 
+    }
+    .custom-input { 
+      width: 100%; 
+      padding: 12px; 
+      border-radius: 8px; 
+      border: 1px solid rgba(255, 255, 255, 0.15); 
+      background: rgba(0, 0, 0, 0.2); 
+      font-size: 14px; 
+      color: #ffffff; 
+      margin-bottom: 10px; 
+      font-weight: 600; 
+    }
+    .custom-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+    .custom-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .add-custom-btn { 
+      width: 100%; 
+      padding: 14px; 
+      border-radius: 8px; 
+      background: rgba(243, 156, 18, 0.2); 
+      border: 1px solid rgba(243, 156, 18, 0.3); 
+      color: #f39c12; 
+      font-size: 14px; 
+      font-weight: 700; 
+      cursor: pointer; 
+      margin-top: 8px; 
+    }
+    .add-custom-btn:active { transform: scale(0.98); }
+    
     /* Save Button */
     .save-workout-btn { 
       width: 100%; 
@@ -968,6 +1007,17 @@
       container.innerHTML = `
         ${exercises.map((exercise, idx) => renderExerciseCard(exercise, idx, dayData[idx])).join('')}
         
+        <div class="custom-exercise-section">
+          <div class="custom-exercise-title">➕ Add Custom Exercise</div>
+          <input type="text" id="customName" class="custom-input" placeholder="Exercise name (e.g., Extra Cardio)" />
+          <div class="custom-row">
+            <input type="number" id="customSets" class="custom-input" placeholder="Sets" inputmode="numeric" />
+            <input type="text" id="customReps" class="custom-input" placeholder="Reps" />
+            <input type="number" id="customWeight" class="custom-input" placeholder="Weight" inputmode="decimal" />
+          </div>
+          <button class="add-custom-btn" type="button" onclick="addCustomExercise()">Add to Workout</button>
+        </div>
+        
         <button class="save-workout-btn ${hasAnyCompleted ? 'ready' : ''}" 
                 type="button" 
                 onclick="saveWorkout()"
@@ -1066,6 +1116,43 @@
       renderWorkout();
     }
 
+    function addCustomExercise() {
+      const name = document.getElementById('customName').value.trim();
+      const sets = document.getElementById('customSets').value;
+      const reps = document.getElementById('customReps').value.trim();
+      const weight = document.getElementById('customWeight').value;
+
+      if (!name) {
+        showAchievement('Missing Info', 'Please enter exercise name', '⚠️');
+        return;
+      }
+
+      const customExercise = {
+        name: name,
+        sets: sets || 3,
+        reps: reps || '10',
+        defaultWeight: weight || 0,
+        isCustom: true
+      };
+
+      // Add to the current day's exercise list
+      workoutProgram[currentWeek].days[currentDay].exercises.push(customExercise);
+      
+      const newIndex = workoutProgram[currentWeek].days[currentDay].exercises.length - 1;
+      if (!workoutData[currentWeek][currentDay][newIndex]) {
+        workoutData[currentWeek][currentDay][newIndex] = {
+          sets: customExercise.sets,
+          reps: customExercise.reps,
+          weight: customExercise.defaultWeight,
+          completed: true
+        };
+      }
+
+      saveState();
+      renderWorkout();
+      showAchievement('Added!', `${name} added to workout`, '✅');
+    }
+
     function saveWorkout() {
       const day = workoutProgram[currentWeek].days[currentDay];
       const dayData = workoutData[currentWeek][currentDay];
@@ -1098,6 +1185,9 @@
       workoutHistory.unshift(workoutSession);
       
       showAchievement('Workout Saved!', `${workoutSession.exercises.length} exercises logged`, '💪');
+      
+      // Remove custom exercises after saving
+      workoutProgram[currentWeek].days[currentDay].exercises = workoutProgram[currentWeek].days[currentDay].exercises.filter(e => !e.isCustom);
       
       // Reset completion but keep weights/sets/reps
       Object.keys(dayData).forEach(key => {
