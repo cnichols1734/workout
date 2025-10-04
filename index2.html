@@ -1195,16 +1195,16 @@
       workoutProgram[currentWeek].days[currentDay].exercises.push(customExercise);
       
       const newIndex = workoutProgram[currentWeek].days[currentDay].exercises.length - 1;
-      if (!workoutData[currentWeek][currentDay][newIndex]) {
-        workoutData[currentWeek][currentDay][newIndex] = {
-          sets: customExercise.sets,
-          reps: customExercise.reps,
-          weight: customExercise.defaultWeight,
-          completed: true
-        };
-      }
+      // Always set the custom exercise as completed
+      workoutData[currentWeek][currentDay][newIndex] = {
+        sets: customExercise.sets,
+        reps: customExercise.reps,
+        weight: customExercise.defaultWeight,
+        completed: true
+      };
 
       saveState();
+      renderDayTabs();
       renderWorkout();
       showAchievement('Added!', `${name} added to workout`, '✅');
     }
