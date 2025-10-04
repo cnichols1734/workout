@@ -83,6 +83,23 @@
     .history-actions { display: flex; align-items: center; gap: 8px; }
     .delete-btn { padding: 6px 10px; border-radius: 8px; background: transparent; border: 1px solid #2a2a2a; color: #888; font-size: 12px; font-weight: 700; cursor: pointer; }
     .delete-btn:active { transform: scale(0.95); }
+    .custom-exercise-section { margin-top: 20px; padding-top: 20px; border-top: 2px solid #2a2a2a; }
+    .custom-exercise-title { font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
+    .custom-input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #2a2a2a; background: #0a0a0a; font-size: 14px; color: #ffffff; margin-bottom: 10px; font-weight: 600; }
+    .custom-input::placeholder { color: #444; }
+    .custom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .add-custom-btn { width: 100%; padding: 14px; border-radius: 8px; background: #2a2a2a; border: 1px solid #3a3a3a; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .add-custom-btn:active { transform: scale(0.98); }
+    .last-weight-btn { padding: 4px 8px; border-radius: 6px; background: #2a2a2a; border: 1px solid #3a3a3a; color: #888; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 8px; }
+    .last-weight-btn:active { transform: scale(0.95); }
+    .confirm-dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1a1a1a; border: 2px solid #3a3a3a; border-radius: 16px; padding: 24px; z-index: 1000; max-width: 320px; width: 90%; }
+    .confirm-title { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
+    .confirm-text { font-size: 14px; color: #888; margin-bottom: 20px; }
+    .confirm-buttons { display: flex; gap: 10px; }
+    .confirm-btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .confirm-btn.primary { background: #3a3a3a; color: #ffffff; }
+    .confirm-btn.secondary { background: transparent; border: 1px solid #2a2a2a; color: #888; }
+    .confirm-btn:active { transform: scale(0.95); }
     .empty-state { text-align: center; padding: 60px 20px; color: #666; }
     .empty-state-icon { font-size: 64px; margin-bottom: 16px; }
     .empty-state-text { font-size: 16px; font-weight: 600; }
@@ -152,6 +169,17 @@
     <div class="achievement-icon" id="achievementIcon">🏆</div>
     <div class="achievement-title" id="achievementTitle">Achievement Unlocked!</div>
     <div class="achievement-text" id="achievementText">Keep crushing it!</div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="overlay" id="confirmOverlay"></div>
+  <div class="confirm-dialog" id="confirmDialog" style="display: none;">
+    <div class="confirm-title" id="confirmTitle">Confirm Action</div>
+    <div class="confirm-text" id="confirmText">Are you sure?</div>
+    <div class="confirm-buttons">
+      <button class="confirm-btn secondary" id="confirmCancel">Cancel</button>
+      <button class="confirm-btn primary" id="confirmOk">Confirm</button>
+    </div>
   </div>
 
   <script>
@@ -317,7 +345,7 @@
       const totalExercises = plan.exercises.filter((e) => !e.optional).length;
       const completedCount = Object.values(dayData)
         .filter((data, index) => data.completed && !plan.exercises[index].optional).length;
-      const isWorkoutComplete = completedCount === totalExercises && totalExercises > 0;
+      const hasAnyCompleted = Object.values(dayData).some(d => d.completed);
 
       container.innerHTML = `
         <div>
@@ -335,11 +363,25 @@
               renderExerciseCard(exercise, index, dayData[index])
             ).join('')}
 
-            <button class="submit-workout-btn ${isWorkoutComplete ? 'ready' : ''}"
+            <div class="custom-exercise-section">
+              <div class="custom-exercise-title">➕ Add Custom Exercise</div>
+              <input type="text" id="customName" class="custom-input" placeholder="Exercise name (e.g., Plank)" />
+              <div class="custom-row">
+                <input type="number" id="customSets" class="custom-input" placeholder="Sets" inputmode="numeric" />
+                <input type="text" id="customReps" class="custom-input" placeholder="Reps (e.g., 12 or 60s)" />
+              </div>
+              <div class="custom-row">
+                <input type="number" id="customWeight" class="custom-input" placeholder="Weight (lbs)" inputmode="decimal" />
+                <input type="number" id="customRPE" class="custom-input" placeholder="RPE (0-10)" inputmode="numeric" min="0" max="10" />
+              </div>
+              <button class="add-custom-btn" type="button" onclick="addCustomExercise()">Add to Workout</button>
+            </div>
+
+            <button class="submit-workout-btn ${hasAnyCompleted ? 'ready' : ''}"
                     type="button"
                     onclick="submitWorkout()"
-                    ${!isWorkoutComplete ? 'disabled' : ''}>
-              ${isWorkoutComplete ? '🏆 Complete Workout' : '⏳ Complete All Exercises'}
+                    ${!hasAnyCompleted ? 'disabled' : ''}>
+              ${hasAnyCompleted ? '💾 Save Workout' : '⏳ Complete At Least One Exercise'}
             </button>
           </div>
         </div>
@@ -349,6 +391,7 @@
     function renderExerciseCard(exercise, index, data = {}) {
       const isCompleted = data?.completed || false;
       const weight = data?.weight ?? '';
+      const lastWeight = getLastWeight(exercise.name);
 
       return `
         <div class="exercise-card${isCompleted ? ' completed' : ''}">
@@ -357,6 +400,7 @@
               <div class="exercise-name">
                 ${exercise.name}
                 ${exercise.optional ? ' <span class="optional-badge">Optional</span>' : ''}
+                ${lastWeight && !weight ? `<button class="last-weight-btn" onclick="useLastWeight(${index}, '${lastWeight}')" type="button">Last: ${lastWeight} lbs</button>` : ''}
               </div>
               <div class="exercise-details">
                 <span>${exercise.sets} × ${exercise.reps}</span>
@@ -378,11 +422,32 @@
               value="${weight}"
               onchange="updateWeight(${index}, this.value)"
               class="weight-input"
+              id="weight-${index}"
             />
             <span class="weight-label">LBS</span>
           </div>` : ''}
         </div>
       `;
+    }
+
+    function getLastWeight(exerciseName) {
+      for (let i = 0; i < workoutHistory.length; i++) {
+        const session = workoutHistory[i];
+        const exercise = session.exercises.find(e => e.name === exerciseName);
+        if (exercise && exercise.weight && exercise.weight !== 'BW') {
+          return exercise.weight;
+        }
+      }
+      return null;
+    }
+
+    function useLastWeight(index, weight) {
+      if (!workoutData[currentDay][index]) {
+        workoutData[currentDay][index] = { weight: '', completed: false };
+      }
+      workoutData[currentDay][index].weight = weight;
+      saveState();
+      renderWorkout();
     }
 
     function updateWeight(index, value) {
@@ -401,6 +466,39 @@
       saveState();
       renderDayTabs();
       renderWorkout();
+    }
+
+    function addCustomExercise() {
+      const name = document.getElementById('customName').value.trim();
+      const sets = document.getElementById('customSets').value;
+      const reps = document.getElementById('customReps').value.trim();
+      const weight = document.getElementById('customWeight').value;
+      const rpe = document.getElementById('customRPE').value;
+
+      if (!name) {
+        showAchievement('Missing Info', 'Please enter exercise name', '⚠️');
+        return;
+      }
+
+      const customExercise = {
+        name: name,
+        sets: sets || 1,
+        reps: reps || '1',
+        rpe: rpe || 0,
+        optional: true,
+        isCustom: true
+      };
+
+      workoutPlan[currentDay].exercises.push(customExercise);
+      
+      const newIndex = workoutPlan[currentDay].exercises.length - 1;
+      if (!workoutData[currentDay][newIndex]) {
+        workoutData[currentDay][newIndex] = { weight: weight || '', completed: true };
+      }
+
+      saveState();
+      renderWorkout();
+      showAchievement('Added!', `${name} added to workout`, '✅');
     }
 
     function submitWorkout() {
@@ -427,10 +525,24 @@
         }
       });
 
+      if (workoutSession.exercises.length === 0) {
+        showAchievement('No Exercises', 'Complete at least one exercise', '⚠️');
+        return;
+      }
+
       workoutHistory.unshift(workoutSession);
 
-      showAchievement('Workout Complete!', 'Great job today!', '🏆');
+      const completedCount = workoutSession.exercises.length;
+      const totalCount = plan.exercises.filter(e => !e.optional).length;
+      
+      if (completedCount >= totalCount) {
+        showAchievement('Workout Complete!', 'You crushed it! 💪', '🏆');
+      } else {
+        showAchievement('Workout Saved!', `${completedCount} exercises logged`, '💾');
+      }
 
+      // Remove custom exercises and reset
+      workoutPlan[currentDay].exercises = workoutPlan[currentDay].exercises.filter(e => !e.isCustom);
       workoutData[currentDay] = {};
       workoutPlan[currentDay].exercises.forEach((_, idx) => {
         if (!workoutData[currentDay][idx]) workoutData[currentDay][idx] = { weight: '', completed: false };
@@ -523,11 +635,44 @@
     }
 
     function deleteWorkout(sessionId) {
-      const index = workoutHistory.findIndex((s) => s.id === sessionId);
-      if (index === -1) return;
-      workoutHistory.splice(index, 1);
-      saveState();
-      renderProgressPage();
+      showConfirm('Delete Workout?', 'This action cannot be undone.', () => {
+        const index = workoutHistory.findIndex((s) => s.id === sessionId);
+        if (index === -1) return;
+        workoutHistory.splice(index, 1);
+        saveState();
+        renderProgressPage();
+        showAchievement('Deleted', 'Workout removed from history', '🗑️');
+      });
+    }
+
+    function showConfirm(title, text, onConfirm) {
+      const dialog = document.getElementById('confirmDialog');
+      const overlay = document.getElementById('confirmOverlay');
+      const titleEl = document.getElementById('confirmTitle');
+      const textEl = document.getElementById('confirmText');
+      const okBtn = document.getElementById('confirmOk');
+      const cancelBtn = document.getElementById('confirmCancel');
+
+      titleEl.textContent = title;
+      textEl.textContent = text;
+
+      dialog.style.display = 'block';
+      overlay.classList.add('show');
+
+      const cleanup = () => {
+        dialog.style.display = 'none';
+        overlay.classList.remove('show');
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+      };
+
+      okBtn.onclick = () => {
+        cleanup();
+        onConfirm();
+      };
+
+      cancelBtn.onclick = cleanup;
+      overlay.onclick = cleanup;
     }
 
     function showAchievement(title, text, icon = '🏆') {
